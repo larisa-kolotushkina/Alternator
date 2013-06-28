@@ -1,16 +1,14 @@
 package com.michelboudreau.alternator;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import javax.servlet.http.HttpServletRequest;
-
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.services.dynamodb.model.*;
+import com.amazonaws.services.dynamodb.model.transform.*;
+import com.michelboudreau.alternator.enums.AttributeValueType;
+import com.michelboudreau.alternator.models.ItemRangeGroup;
+import com.michelboudreau.alternator.models.Limits;
+import com.michelboudreau.alternator.models.Table;
+import com.michelboudreau.alternator.parsers.AmazonWebServiceRequestParser;
+import com.michelboudreau.alternator.validators.*;
 import org.codehaus.jackson.annotate.JsonAutoDetect;
 import org.codehaus.jackson.annotate.JsonMethod;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -18,96 +16,10 @@ import org.codehaus.jackson.map.SerializationConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.services.dynamodb.model.AttributeAction;
-import com.amazonaws.services.dynamodb.model.AttributeValue;
-import com.amazonaws.services.dynamodb.model.AttributeValueUpdate;
-import com.amazonaws.services.dynamodb.model.BatchGetItemRequest;
-import com.amazonaws.services.dynamodb.model.BatchGetItemResult;
-import com.amazonaws.services.dynamodb.model.BatchResponse;
-import com.amazonaws.services.dynamodb.model.BatchWriteItemRequest;
-import com.amazonaws.services.dynamodb.model.BatchWriteItemResult;
-import com.amazonaws.services.dynamodb.model.BatchWriteResponse;
-import com.amazonaws.services.dynamodb.model.Condition;
-import com.amazonaws.services.dynamodb.model.ConditionalCheckFailedException;
-import com.amazonaws.services.dynamodb.model.CreateTableRequest;
-import com.amazonaws.services.dynamodb.model.CreateTableResult;
-import com.amazonaws.services.dynamodb.model.DeleteItemRequest;
-import com.amazonaws.services.dynamodb.model.DeleteItemResult;
-import com.amazonaws.services.dynamodb.model.DeleteRequest;
-import com.amazonaws.services.dynamodb.model.DeleteTableRequest;
-import com.amazonaws.services.dynamodb.model.DeleteTableResult;
-import com.amazonaws.services.dynamodb.model.DescribeTableRequest;
-import com.amazonaws.services.dynamodb.model.DescribeTableResult;
-import com.amazonaws.services.dynamodb.model.ExpectedAttributeValue;
-import com.amazonaws.services.dynamodb.model.GetItemRequest;
-import com.amazonaws.services.dynamodb.model.GetItemResult;
-import com.amazonaws.services.dynamodb.model.InternalServerErrorException;
-import com.amazonaws.services.dynamodb.model.Key;
-import com.amazonaws.services.dynamodb.model.KeySchema;
-import com.amazonaws.services.dynamodb.model.KeySchemaElement;
-import com.amazonaws.services.dynamodb.model.KeysAndAttributes;
-import com.amazonaws.services.dynamodb.model.LimitExceededException;
-import com.amazonaws.services.dynamodb.model.ListTablesRequest;
-import com.amazonaws.services.dynamodb.model.ListTablesResult;
-import com.amazonaws.services.dynamodb.model.PutItemRequest;
-import com.amazonaws.services.dynamodb.model.PutItemResult;
-import com.amazonaws.services.dynamodb.model.PutRequest;
-import com.amazonaws.services.dynamodb.model.QueryRequest;
-import com.amazonaws.services.dynamodb.model.QueryResult;
-import com.amazonaws.services.dynamodb.model.ResourceInUseException;
-import com.amazonaws.services.dynamodb.model.ResourceNotFoundException;
-import com.amazonaws.services.dynamodb.model.ReturnValue;
-import com.amazonaws.services.dynamodb.model.ScanRequest;
-import com.amazonaws.services.dynamodb.model.ScanResult;
-import com.amazonaws.services.dynamodb.model.TableStatus;
-import com.amazonaws.services.dynamodb.model.UpdateItemRequest;
-import com.amazonaws.services.dynamodb.model.UpdateItemResult;
-import com.amazonaws.services.dynamodb.model.UpdateTableRequest;
-import com.amazonaws.services.dynamodb.model.UpdateTableResult;
-import com.amazonaws.services.dynamodb.model.WriteRequest;
-import com.amazonaws.services.dynamodb.model.transform.BatchGetItemRequestJsonUnmarshaller;
-import com.amazonaws.services.dynamodb.model.transform.BatchGetItemResultMarshaller;
-import com.amazonaws.services.dynamodb.model.transform.BatchWriteItemRequestJsonUnmarshaller;
-import com.amazonaws.services.dynamodb.model.transform.BatchWriteItemResultMarshaller;
-import com.amazonaws.services.dynamodb.model.transform.CreateTableRequestJsonUnmarshaller;
-import com.amazonaws.services.dynamodb.model.transform.CreateTableResultMarshaller;
-import com.amazonaws.services.dynamodb.model.transform.DeleteItemRequestJsonUnmarshaller;
-import com.amazonaws.services.dynamodb.model.transform.DeleteItemResultMarshaller;
-import com.amazonaws.services.dynamodb.model.transform.DeleteTableRequestJsonUnmarshaller;
-import com.amazonaws.services.dynamodb.model.transform.DeleteTableResultMarshaller;
-import com.amazonaws.services.dynamodb.model.transform.DescribeTableRequestJsonUnmarshaller;
-import com.amazonaws.services.dynamodb.model.transform.DescribeTableResultMarshaller;
-import com.amazonaws.services.dynamodb.model.transform.GetItemRequestJsonUnmarshaller;
-import com.amazonaws.services.dynamodb.model.transform.GetItemResultMarshaller;
-import com.amazonaws.services.dynamodb.model.transform.ListTablesRequestJsonUnmarshaller;
-import com.amazonaws.services.dynamodb.model.transform.ListTablesResultMarshaller;
-import com.amazonaws.services.dynamodb.model.transform.PutItemRequestJsonUnmarshaller;
-import com.amazonaws.services.dynamodb.model.transform.PutItemResultMarshaller;
-import com.amazonaws.services.dynamodb.model.transform.QueryRequestJsonUnmarshaller;
-import com.amazonaws.services.dynamodb.model.transform.QueryResultMarshaller;
-import com.amazonaws.services.dynamodb.model.transform.ScanRequestJsonUnmarshaller;
-import com.amazonaws.services.dynamodb.model.transform.ScanResultMarshaller;
-import com.amazonaws.services.dynamodb.model.transform.UpdateItemRequestJsonUnmarshaller;
-import com.amazonaws.services.dynamodb.model.transform.UpdateItemResultMarshaller;
-import com.amazonaws.services.dynamodb.model.transform.UpdateTableRequestJsonUnmarshaller;
-import com.amazonaws.services.dynamodb.model.transform.UpdateTableResultMarshaller;
-import com.michelboudreau.alternator.enums.AttributeValueType;
-import com.michelboudreau.alternator.models.ItemRangeGroup;
-import com.michelboudreau.alternator.models.Limits;
-import com.michelboudreau.alternator.models.Table;
-import com.michelboudreau.alternator.parsers.AmazonWebServiceRequestParser;
-import com.michelboudreau.alternator.validators.CreateTableRequestValidator;
-import com.michelboudreau.alternator.validators.DeleteItemRequestValidator;
-import com.michelboudreau.alternator.validators.DeleteTableRequestValidator;
-import com.michelboudreau.alternator.validators.DescribeTableRequestValidator;
-import com.michelboudreau.alternator.validators.GetItemRequestValidator;
-import com.michelboudreau.alternator.validators.ListTablesRequestValidator;
-import com.michelboudreau.alternator.validators.PutItemRequestValidator;
-import com.michelboudreau.alternator.validators.QueryRequestValidator;
-import com.michelboudreau.alternator.validators.ScanRequestValidator;
-import com.michelboudreau.alternator.validators.UpdateItemRequestValidator;
-import com.michelboudreau.alternator.validators.UpdateTableRequestValidator;
+import javax.servlet.http.HttpServletRequest;
+import java.io.File;
+import java.io.IOException;
+import java.util.*;
 
 class AlternatorDBHandler {
 
@@ -603,6 +515,7 @@ class AlternatorDBHandler {
           for (String rangeKey : rangeGroup.getKeySet()) {
 			Map<String, AttributeValue> item = rangeGroup.getItem(rangeKey);
 			if (request.getScanFilter() != null) {
+                boolean itemToAdd = false;
 				for (String k : request.getScanFilter().keySet()) {
 					if (item.get(k) != null) {
 						Condition cond = request.getScanFilter().get(k);
@@ -611,13 +524,9 @@ class AlternatorDBHandler {
 						}
 						if (cond.getComparisonOperator().equals("EQ")) {
 							if (cond.getAttributeValueList().size() == 1) {
-								if (item.get(k).equals(cond.getAttributeValueList().get(0))) {
-									items.add(item);
-								}
+                                itemToAdd = item.get(k).equals(cond.getAttributeValueList().get(0));
 							} else {
-								if (item.get(k).equals(cond.getAttributeValueList())) {
-									items.add(item);
-								}
+                                itemToAdd = item.get(k).equals(cond.getAttributeValueList());
 							}
 						}
 						if (cond.getComparisonOperator().equals("LE")) {
@@ -625,9 +534,7 @@ class AlternatorDBHandler {
 								if (getAttributeValueType(item.get(k)).equals(AttributeValueType.S) || getAttributeValueType(item.get(k)).equals(AttributeValueType.N)) {
 									String value = (getAttributeValueType(item.get(k)).equals(AttributeValueType.S)) ? item.get(k).getS() : item.get(k).getN();
 									String comp = (getAttributeValueType(cond.getAttributeValueList().get(0)).equals(AttributeValueType.S)) ? cond.getAttributeValueList().get(0).getS() : cond.getAttributeValueList().get(0).getN();
-									if (value.compareTo(comp) >= 0) {
-										items.add(item);
-									}
+                                    itemToAdd = value.compareTo(comp) >= 0;
 								} else {
 									//TODO to do
 									//List<String> value = (getAttributeValueType(item.get(k)).equals(AttributeValueType.SS))? item.get(k).getSS() : item.get(k).getNS();
@@ -635,9 +542,7 @@ class AlternatorDBHandler {
 
 							} else {
 								//TODO to do
-								if (item.get(k).equals(cond.getAttributeValueList())) {
-									items.add(item);
-								}
+                                itemToAdd = item.get(k).equals(cond.getAttributeValueList());
 							}
 						}
 						if (cond.getComparisonOperator().equals("LT")) {
@@ -645,19 +550,14 @@ class AlternatorDBHandler {
 								if (getAttributeValueType(item.get(k)).equals(AttributeValueType.S) || getAttributeValueType(item.get(k)).equals(AttributeValueType.N)) {
 									String value = (getAttributeValueType(item.get(k)).equals(AttributeValueType.S)) ? item.get(k).getS() : item.get(k).getN();
 									String comp = (getAttributeValueType(cond.getAttributeValueList().get(0)).equals(AttributeValueType.S)) ? cond.getAttributeValueList().get(0).getS() : cond.getAttributeValueList().get(0).getN();
-									if (value.compareTo(comp) < 0) {
-										items.add(item);
-									}
+                                    itemToAdd = value.compareTo(comp) < 0;
 								} else {
 									//TODO to do
 									//List<String> value = (getAttributeValueType(item.get(k)).equals(AttributeValueType.SS))? item.get(k).getSS() : item.get(k).getNS();
 								}
-
 							} else {
 								//TODO to do
-								if (item.get(k).equals(cond.getAttributeValueList())) {
-									items.add(item);
-								}
+                                itemToAdd = item.get(k).equals(cond.getAttributeValueList());
 							}
 						}
 						if (cond.getComparisonOperator().equals("GE")) {
@@ -665,9 +565,7 @@ class AlternatorDBHandler {
 								if (getAttributeValueType(item.get(k)).equals(AttributeValueType.S) || getAttributeValueType(item.get(k)).equals(AttributeValueType.N)) {
 									String value = (getAttributeValueType(item.get(k)).equals(AttributeValueType.S)) ? item.get(k).getS() : item.get(k).getN();
 									String comp = (getAttributeValueType(cond.getAttributeValueList().get(0)).equals(AttributeValueType.S)) ? cond.getAttributeValueList().get(0).getS() : cond.getAttributeValueList().get(0).getN();
-									if (value.compareTo(comp) <= 0) {
-										items.add(item);
-									}
+                                    itemToAdd = value.compareTo(comp) <= 0;
 								} else {
 									//TODO to do
 									//List<String> value = (getAttributeValueType(item.get(k)).equals(AttributeValueType.SS))? item.get(k).getSS() : item.get(k).getNS();
@@ -675,9 +573,7 @@ class AlternatorDBHandler {
 
 							} else {
 								//TODO to do
-								if (item.get(k).equals(cond.getAttributeValueList())) {
-									items.add(item);
-								}
+                                itemToAdd = item.get(k).equals(cond.getAttributeValueList());
 							}
 						}
 						if (cond.getComparisonOperator().equals("GT")) {
@@ -686,37 +582,46 @@ class AlternatorDBHandler {
 									if (getAttributeValueType(item.get(k)).equals(AttributeValueType.S)) {
 										String value = (getAttributeValueType(item.get(k)).equals(AttributeValueType.S)) ? item.get(k).getS() : item.get(k).getN();
 										String comp = (getAttributeValueType(cond.getAttributeValueList().get(0)).equals(AttributeValueType.S)) ? cond.getAttributeValueList().get(0).getS() : cond.getAttributeValueList().get(0).getN();
-										if (value.compareTo(comp) > 0) {
-											items.add(item);
-										}
+                                        itemToAdd = value.compareTo(comp) > 0;
 									} else {
 										String value = (getAttributeValueType(item.get(k)).equals(AttributeValueType.S)) ? item.get(k).getS() : item.get(k).getN();
 										String comp = (getAttributeValueType(cond.getAttributeValueList().get(0)).equals(AttributeValueType.S)) ? cond.getAttributeValueList().get(0).getS() : cond.getAttributeValueList().get(0).getN();
-										if (Integer.parseInt(value) > Integer.parseInt(comp)) {
-											items.add(item);
-										}
+                                        itemToAdd = Integer.parseInt(value) > Integer.parseInt(comp);
 									}
 								} else {
 									//TODO to do
 									//List<String> value = (getAttributeValueType(item.get(k)).equals(AttributeValueType.SS))? item.get(k).getSS() : item.get(k).getNS();
 								}
-
 							} else {
 								//TODO to do
-								if (item.get(k).equals(cond.getAttributeValueList())) {
-									items.add(item);
-								}
+                                itemToAdd = item.get(k).equals(cond.getAttributeValueList());
 							}
 						}
+                        if (cond.getComparisonOperator().equals("CONTAINS")) {
+                            boolean contains = false;
+                            for (AttributeValue value: cond.getAttributeValueList()) {
+                                if (getAttributeValueType(item.get(k)).equals(AttributeValueType.S)) {
+                                    if (item.get(k).toString().contains(value.getS()))
+                                        contains = true;
+                                }
+                            }
+                            itemToAdd = contains;
+                        }
 						if (cond.getComparisonOperator().equals("IN")) {
+                            boolean contains = false;
 							for(AttributeValue value : cond.getAttributeValueList()){
 								if(item.get(k).equals(value)){
-									items.add(item);
+                                    contains = true;
 								}
 							}
+                            itemToAdd = contains;
 						}
-					}
+					} else {
+                        itemToAdd = false;
+                    }
 				}
+                if (itemToAdd)
+                    items.add(item);
 			} else {
 				items.add(item);
 			}
@@ -947,11 +852,11 @@ class AlternatorDBHandler {
 	private void addAttributeValue(Map<String, AttributeValue> item, String attributename, AttributeValueUpdate valueUpdate){
 		
 		AttributeValue value = item.get(attributename);
-		if (value==null){
+		if (value==null) {
 			//new field
 			value = valueUpdate.getValue();
 			item.put(attributename, value);
-		}else{
+		} else{
 			if (value.getSS() != null) {
 				if (valueUpdate.getValue().getSS() == null) {
 					throw new ConditionalCheckFailedException("It's not possible to ADD something else than a List<String> for the attribute (" + attributename + ")");
@@ -971,9 +876,15 @@ class AlternatorDBHandler {
 			} else if (value.getS() != null) {
 				throw new ConditionalCheckFailedException("It's not possible to ADD on an attribute with a String type for the attribute (" + attributename + ")");
 			} else if (value.getN() != null) {
-				Double i = new Double(value.getN());
-				i = i + new Double(valueUpdate.getValue().getN());
-				value.setN(i + "");
+                try {
+                    Long l = Long.valueOf(value.getN());
+                    l = l + Long.valueOf(valueUpdate.getValue().getN());
+                    value.setN(l + "");
+                } catch (NumberFormatException e) {
+                    Double i = new Double(value.getN());
+                    i = i + new Double(valueUpdate.getValue().getN());
+                    value.setN(i + "");
+                }
 			}
 		}
 	}
